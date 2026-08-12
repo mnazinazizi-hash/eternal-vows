@@ -1,9 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 
-type Attendance = "Accepted" | "Declined" | "Pending";
+const ADMIN_SESSION_KEY =
+  "eternal_vows_admin_authenticated";
+
+type Attendance =
+  | "Accepted"
+  | "Declined"
+  | "Pending";
 
 type Guest = {
   id: number;
@@ -18,6 +28,14 @@ type Guest = {
   submitted: string;
 };
 
+type Contribution = {
+  id: number;
+  name: string;
+  amount: number;
+  date: string;
+  status: "Received" | "Pending";
+};
+
 const initialGuests: Guest[] = [
   {
     id: 1,
@@ -28,8 +46,10 @@ const initialGuests: Guest[] = [
     attendance: "Accepted",
     plusOne: true,
     plusOneName: "David",
-    message: "We are so excited to celebrate with you!",
-    submitted: "12 Aug 2026, 10:42 AM",
+    message:
+      "We are so excited to celebrate with you!",
+    submitted:
+      "12 Aug 2026, 10:42 AM",
   },
   {
     id: 2,
@@ -39,8 +59,10 @@ const initialGuests: Guest[] = [
     phone: "0722 456 789",
     attendance: "Accepted",
     plusOne: false,
-    message: "Congratulations to you both!",
-    submitted: "12 Aug 2026, 09:31 AM",
+    message:
+      "Congratulations to you both!",
+    submitted:
+      "12 Aug 2026, 09:31 AM",
   },
   {
     id: 3,
@@ -50,8 +72,10 @@ const initialGuests: Guest[] = [
     phone: "0701 998 234",
     attendance: "Declined",
     plusOne: false,
-    message: "Wishing you both a beautiful marriage.",
-    submitted: "11 Aug 2026, 04:18 PM",
+    message:
+      "Wishing you both a beautiful marriage.",
+    submitted:
+      "11 Aug 2026, 04:18 PM",
   },
   {
     id: 4,
@@ -73,18 +97,12 @@ const initialGuests: Guest[] = [
     attendance: "Accepted",
     plusOne: true,
     plusOneName: "Kevin",
-    message: "Looking forward to the big day!",
-    submitted: "10 Aug 2026, 08:12 PM",
+    message:
+      "Looking forward to the big day!",
+    submitted:
+      "10 Aug 2026, 08:12 PM",
   },
 ];
-
-type Contribution = {
-  id: number;
-  name: string;
-  amount: number;
-  date: string;
-  status: "Received" | "Pending";
-};
 
 const initialContributions: Contribution[] = [
   {
@@ -113,58 +131,94 @@ const initialContributions: Contribution[] = [
 export default function AdminPage() {
   const router = useRouter();
 
-  const [guests] = useState<Guest[]>(initialGuests);
+  const [
+    checkingAccess,
+    setCheckingAccess,
+  ] = useState(true);
 
-  const [contributions] = useState<Contribution[]>(
-    initialContributions
-  );
+  const [guests] =
+    useState<Guest[]>(initialGuests);
 
-  const [search, setSearch] = useState("");
+  const [contributions] =
+    useState<Contribution[]>(
+      initialContributions
+    );
 
-  const [filter, setFilter] = useState<
-    "All" | Attendance
-  >("All");
+  const [search, setSearch] =
+    useState("");
+
+  const [filter, setFilter] =
+    useState<"All" | Attendance>("All");
 
   const [selectedGuest, setSelectedGuest] =
     useState<Guest | null>(null);
 
-  const [activeSection, setActiveSection] = useState<
-    "overview" | "rsvps" | "announcements" | "contributions"
-  >("overview");
+  const [activeSection, setActiveSection] =
+    useState<
+      | "overview"
+      | "rsvps"
+      | "announcements"
+      | "contributions"
+    >("overview");
 
-  const [showAnnouncementForm, setShowAnnouncementForm] =
-    useState(false);
+  const [
+    showAnnouncementForm,
+    setShowAnnouncementForm,
+  ] = useState(false);
 
-  const [announcement, setAnnouncement] = useState({
-    title: "",
-    message: "",
-  });
+  const [announcement, setAnnouncement] =
+    useState({
+      title: "",
+      message: "",
+    });
+
+  /* =========================================================
+     FRONTEND-ONLY ACCESS CHECK
+  ========================================================== */
+  useEffect(() => {
+    const authenticated =
+      sessionStorage.getItem(
+        ADMIN_SESSION_KEY
+      ) === "true";
+
+    if (!authenticated) {
+      router.replace("/");
+      return;
+    }
+
+    setCheckingAccess(false);
+  }, [router]);
 
   const accepted = guests.filter(
-    (guest) => guest.attendance === "Accepted"
+    (guest) =>
+      guest.attendance === "Accepted"
   ).length;
 
   const declined = guests.filter(
-    (guest) => guest.attendance === "Declined"
+    (guest) =>
+      guest.attendance === "Declined"
   ).length;
-
 
   const plusOnes = guests.filter(
     (guest) =>
-      guest.attendance === "Accepted" && guest.plusOne
+      guest.attendance === "Accepted" &&
+      guest.plusOne
   ).length;
 
-  const totalAttending = accepted + plusOnes;
+  const totalAttending =
+    accepted + plusOnes;
 
-  const totalContributions = contributions.reduce(
-    (total, contribution) =>
-      total + contribution.amount,
-    0
-  );
+  const totalContributions =
+    contributions.reduce(
+      (total, contribution) =>
+        total + contribution.amount,
+      0
+    );
 
   const filteredGuests = useMemo(() => {
     return guests.filter((guest) => {
-      const normalizedSearch = search.toLowerCase();
+      const normalizedSearch =
+        search.toLowerCase();
 
       const matchesSearch =
         `${guest.firstName} ${guest.lastName}`
@@ -179,28 +233,46 @@ export default function AdminPage() {
         filter === "All" ||
         guest.attendance === filter;
 
-      return matchesSearch && matchesFilter;
+      return (
+        matchesSearch &&
+        matchesFilter
+      );
     });
   }, [guests, search, filter]);
 
   const exportToExcel = async () => {
     try {
-      const XLSX = await import("xlsx");
+      const XLSX = await import(
+        "xlsx"
+      );
 
-      const rows = guests.map((guest) => ({
-        "First Name": guest.firstName,
-        "Last Name": guest.lastName,
-        Email: guest.email,
-        Phone: guest.phone,
-        Attendance: guest.attendance,
-        "Plus One": guest.plusOne ? "Yes" : "No",
-        "Plus One Name": guest.plusOneName || "",
-        Message: guest.message,
-        "Submitted At": guest.submitted,
-      }));
+      const rows = guests.map(
+        (guest) => ({
+          "First Name":
+            guest.firstName,
+          "Last Name":
+            guest.lastName,
+          Email: guest.email,
+          Phone: guest.phone,
+          Attendance:
+            guest.attendance,
+          "Plus One":
+            guest.plusOne
+              ? "Yes"
+              : "No",
+          "Plus One Name":
+            guest.plusOneName || "",
+          Message:
+            guest.message,
+          "Submitted At":
+            guest.submitted,
+        })
+      );
 
       const worksheet =
-        XLSX.utils.json_to_sheet(rows);
+        XLSX.utils.json_to_sheet(
+          rows
+        );
 
       const workbook =
         XLSX.utils.book_new();
@@ -247,11 +319,17 @@ export default function AdminPage() {
       message: "",
     });
 
-    setShowAnnouncementForm(false);
+    setShowAnnouncementForm(
+      false
+    );
   };
 
   const handleLogout = () => {
-    router.replace("/admin/login");
+    sessionStorage.removeItem(
+      ADMIN_SESSION_KEY
+    );
+
+    router.replace("/");
   };
 
   const sidebarItems = [
@@ -277,29 +355,42 @@ export default function AdminPage() {
     },
   ];
 
+  if (checkingAccess) {
+    return (
+      <main className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <span className="material-symbols-outlined text-primary text-4xl animate-spin">
+            progress_activity
+          </span>
+
+          <p className="font-body-sm text-on-surface-variant mt-3">
+            Checking admin access...
+          </p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-background">
 
-      {/* ======================================================
-          FIXED LEFT SIDEBAR
+      {/* =====================================================
+          FIXED SIDEBAR
       ====================================================== */}
       <aside
         className="
           hidden lg:flex
-          fixed
-          inset-y-0
-          left-0
+          fixed inset-y-0 left-0
           z-40
           w-64
           h-screen
-          border-r
-          border-outline-variant/20
+          border-r border-outline-variant/20
           bg-surface
           flex-col
           overflow-hidden
         "
       >
-        {/* Wedding information */}
+        {/* Branding */}
         <div className="p-6 border-b border-outline-variant/15 shrink-0">
           <p className="font-label-caps text-label-caps text-primary mb-1">
             WEDDING ADMIN
@@ -321,15 +412,13 @@ export default function AdminPage() {
               key={item.id}
               type="button"
               onClick={() =>
-                setActiveSection(item.id)
+                setActiveSection(
+                  item.id
+                )
               }
               className={`
-                w-full
-                flex
-                items-center
-                gap-3
-                px-4
-                py-3
+                w-full flex items-center gap-3
+                px-4 py-3
                 rounded-xl
                 text-left
                 transition-all
@@ -351,19 +440,16 @@ export default function AdminPage() {
           ))}
         </nav>
 
-        {/* Sign Out */}
+        {/* Sign out */}
         <div className="p-4 border-t border-outline-variant/15 shrink-0">
           <button
             type="button"
-            onClick={handleLogout}
+            onClick={
+              handleLogout
+            }
             className="
-              w-full
-              flex
-              items-center
-              gap-3
-              px-4
-              py-3
-              rounded-xl
+              w-full flex items-center gap-3
+              px-4 py-3 rounded-xl
               text-on-surface-variant
               hover:bg-red-50
               hover:text-red-600
@@ -381,11 +467,11 @@ export default function AdminPage() {
         </div>
       </aside>
 
-      {/* ======================================================
+      {/* =====================================================
           MOBILE ADMIN HEADER
       ====================================================== */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-surface border-b border-outline-variant/20 px-4 py-3">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between">
           <div>
             <p className="font-label-caps text-label-caps text-primary">
               WEDDING ADMIN
@@ -398,7 +484,9 @@ export default function AdminPage() {
 
           <button
             type="button"
-            onClick={handleLogout}
+            onClick={
+              handleLogout
+            }
             className="w-10 h-10 rounded-full bg-red-50 text-red-600 flex items-center justify-center"
             aria-label="Sign out"
           >
@@ -409,18 +497,18 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* ======================================================
+      {/* =====================================================
           MAIN CONTENT
       ====================================================== */}
       <div className="lg:ml-64 min-h-screen">
         <div className="p-5 md:p-8 max-w-7xl mx-auto pt-24 lg:pt-8">
 
-          {/* ==================================================
+          {/* =================================================
               OVERVIEW
           ================================================== */}
-          {activeSection === "overview" && (
+          {activeSection ===
+            "overview" && (
             <>
-              {/* Welcome */}
               <div className="rounded-3xl bg-surface border border-outline-variant/25 p-7 md:p-9 mb-7 shadow-[0_8px_28px_rgba(0,0,0,0.06)]">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
 
@@ -434,15 +522,19 @@ export default function AdminPage() {
                     </h2>
 
                     <p className="font-body-md text-on-surface-variant max-w-2xl">
-                      Keep track of RSVPs, announcements and wedding
-                      contributions from one place.
+                      Keep track of RSVPs,
+                      announcements and
+                      wedding contributions
+                      from one place.
                     </p>
                   </div>
 
                   <button
                     type="button"
                     onClick={() =>
-                      setActiveSection("rsvps")
+                      setActiveSection(
+                        "rsvps"
+                      )
                     }
                     className="inline-flex items-center justify-center gap-2 bg-primary text-on-primary rounded-full px-6 py-3 font-label-caps text-label-caps hover:brightness-110 transition-all"
                   >
@@ -455,7 +547,7 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* Statistics */}
+              {/* Stats */}
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-7">
 
                 <StatCard
@@ -468,7 +560,9 @@ export default function AdminPage() {
                 <StatCard
                   icon="check_circle"
                   label="Accepted"
-                  value={accepted}
+                  value={
+                    accepted
+                  }
                   detail={`${totalAttending} people expected`}
                   accent="green"
                 />
@@ -476,7 +570,9 @@ export default function AdminPage() {
                 <StatCard
                   icon="cancel"
                   label="Declined"
-                  value={declined}
+                  value={
+                    declined
+                  }
                   detail="Unable to attend"
                   accent="red"
                 />
@@ -490,7 +586,7 @@ export default function AdminPage() {
                 />
               </div>
 
-              {/* Main actions */}
+              {/* Actions */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-7">
 
                 <QuickAction
@@ -529,7 +625,9 @@ export default function AdminPage() {
                   <button
                     type="button"
                     onClick={() =>
-                      setActiveSection("rsvps")
+                      setActiveSection(
+                        "rsvps"
+                      )
                     }
                     className="text-primary font-body-sm hover:underline"
                   >
@@ -538,14 +636,19 @@ export default function AdminPage() {
                 }
               >
                 <GuestTable
-                  guests={guests.slice(0, 5)}
-                  onSelect={setSelectedGuest}
+                  guests={guests.slice(
+                    0,
+                    5
+                  )}
+                  onSelect={
+                    setSelectedGuest
+                  }
                 />
               </SectionCard>
             </>
           )}
 
-          {/* ==================================================
+          {/* =================================================
               RSVPS
           ================================================== */}
           {activeSection === "rsvps" && (
@@ -554,8 +657,10 @@ export default function AdminPage() {
               action={
                 <button
                   type="button"
-                  onClick={exportToExcel}
-                  className="inline-flex items-center gap-2 rounded-full bg-primary text-on-primary px-5 py-2.5 font-label-caps text-label-caps hover:brightness-110 transition-all"
+                  onClick={
+                    exportToExcel
+                  }
+                  className="inline-flex items-center gap-2 rounded-full bg-primary text-on-primary px-5 py-2.5 font-label-caps text-label-caps hover:brightness-110 transition"
                 >
                   <span className="material-symbols-outlined text-lg">
                     download
@@ -566,7 +671,6 @@ export default function AdminPage() {
               }
             >
               <div className="flex flex-col md:flex-row gap-4 mb-6">
-
                 <div className="relative flex-1">
                   <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">
                     search
@@ -575,7 +679,9 @@ export default function AdminPage() {
                   <input
                     value={search}
                     onChange={(e) =>
-                      setSearch(e.target.value)
+                      setSearch(
+                        e.target.value
+                      )
                     }
                     placeholder="Search guests..."
                     className="w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest pl-12 pr-4 py-3 font-body-sm text-on-surface outline-none focus:border-primary transition"
@@ -596,15 +702,12 @@ export default function AdminPage() {
                   <option value="All">
                     All responses
                   </option>
-
                   <option value="Accepted">
                     Accepted
                   </option>
-
                   <option value="Declined">
                     Declined
                   </option>
-
                   <option value="Pending">
                     Pending
                   </option>
@@ -612,25 +715,32 @@ export default function AdminPage() {
               </div>
 
               <GuestTable
-                guests={filteredGuests}
-                onSelect={setSelectedGuest}
+                guests={
+                  filteredGuests
+                }
+                onSelect={
+                  setSelectedGuest
+                }
               />
             </SectionCard>
           )}
 
-          {/* ==================================================
+          {/* =================================================
               ANNOUNCEMENTS
           ================================================== */}
-          {activeSection === "announcements" && (
+          {activeSection ===
+            "announcements" && (
             <SectionCard
               title="Announcements"
               action={
                 <button
                   type="button"
                   onClick={() =>
-                    setShowAnnouncementForm(true)
+                    setShowAnnouncementForm(
+                      true
+                    )
                   }
-                  className="inline-flex items-center gap-2 rounded-full bg-primary text-on-primary px-5 py-2.5 font-label-caps text-label-caps hover:brightness-110 transition-all"
+                  className="inline-flex items-center gap-2 rounded-full bg-primary text-on-primary px-5 py-2.5 font-label-caps text-label-caps hover:brightness-110 transition"
                 >
                   <span className="material-symbols-outlined text-lg">
                     add
@@ -645,24 +755,34 @@ export default function AdminPage() {
                   <div className="space-y-4">
 
                     <input
-                      value={announcement.title}
+                      value={
+                        announcement.title
+                      }
                       onChange={(e) =>
-                        setAnnouncement({
-                          ...announcement,
-                          title: e.target.value,
-                        })
+                        setAnnouncement(
+                          {
+                            ...announcement,
+                            title:
+                              e.target.value,
+                          }
+                        )
                       }
                       placeholder="Announcement title"
                       className="w-full rounded-xl border border-outline-variant/30 bg-surface px-4 py-3 font-body-sm outline-none focus:border-primary"
                     />
 
                     <textarea
-                      value={announcement.message}
+                      value={
+                        announcement.message
+                      }
                       onChange={(e) =>
-                        setAnnouncement({
-                          ...announcement,
-                          message: e.target.value,
-                        })
+                        setAnnouncement(
+                          {
+                            ...announcement,
+                            message:
+                              e.target.value,
+                          }
+                        )
                       }
                       placeholder="Write your announcement..."
                       rows={6}
@@ -670,11 +790,12 @@ export default function AdminPage() {
                     />
 
                     <div className="flex gap-3">
-
                       <button
                         type="button"
-                        onClick={publishAnnouncement}
-                        className="rounded-full bg-primary text-on-primary px-6 py-3 font-label-caps text-label-caps hover:brightness-110 transition-all"
+                        onClick={
+                          publishAnnouncement
+                        }
+                        className="rounded-full bg-primary text-on-primary px-6 py-3 font-label-caps text-label-caps"
                       >
                         Publish
                       </button>
@@ -690,13 +811,11 @@ export default function AdminPage() {
                       >
                         Cancel
                       </button>
-
                     </div>
                   </div>
                 </div>
               ) : (
                 <div className="rounded-2xl border border-dashed border-outline-variant/30 p-10 text-center">
-
                   <span className="material-symbols-outlined text-4xl text-tertiary mb-3">
                     campaign
                   </span>
@@ -706,19 +825,21 @@ export default function AdminPage() {
                   </h3>
 
                   <p className="font-body-sm text-on-surface-variant max-w-md mx-auto">
-                    Publish an announcement when you need to communicate
-                    an important update to your guests.
+                    Publish an announcement
+                    when you need to communicate
+                    an important update to your
+                    guests.
                   </p>
-
                 </div>
               )}
             </SectionCard>
           )}
 
-          {/* ==================================================
-              TOTAL CONTRIBUTIONS
+          {/* =================================================
+              CONTRIBUTIONS
           ================================================== */}
-          {activeSection === "contributions" && (
+          {activeSection ===
+            "contributions" && (
             <SectionCard
               title="Total Contributions"
               action={
@@ -743,7 +864,9 @@ export default function AdminPage() {
                 <StatCard
                   icon="volunteer_activism"
                   label="Contributors"
-                  value={contributions.length}
+                  value={
+                    contributions.length
+                  }
                   detail="Guests who contributed"
                   accent="green"
                 />
@@ -761,7 +884,6 @@ export default function AdminPage() {
                     ).toLocaleString()
                   }`}
                   detail="Average contribution"
-                  accent="primary"
                 />
               </div>
 
@@ -769,7 +891,6 @@ export default function AdminPage() {
                 <table className="w-full min-w-[600px]">
                   <thead>
                     <tr className="text-left border-b border-outline-variant/20">
-
                       <th className="px-4 py-3 font-label-caps text-label-caps text-on-surface-variant">
                         Contributor
                       </th>
@@ -790,27 +911,29 @@ export default function AdminPage() {
 
                   <tbody>
                     {contributions.map(
-                      (contribution) => (
+                      (item) => (
                         <tr
-                          key={contribution.id}
+                          key={
+                            item.id
+                          }
                           className="border-b border-outline-variant/10"
                         >
                           <td className="px-4 py-4 font-body-sm font-semibold text-on-surface">
-                            {contribution.name}
+                            {item.name}
                           </td>
 
                           <td className="px-4 py-4 font-body-sm text-on-surface">
                             KES{" "}
-                            {contribution.amount.toLocaleString()}
+                            {item.amount.toLocaleString()}
                           </td>
 
                           <td className="px-4 py-4 font-body-sm text-on-surface-variant">
-                            {contribution.date}
+                            {item.date}
                           </td>
 
                           <td className="px-4 py-4">
                             <span className="inline-flex rounded-full bg-green-50 text-green-700 px-3 py-1 font-label-caps text-[11px]">
-                              {contribution.status}
+                              {item.status}
                             </span>
                           </td>
                         </tr>
@@ -824,32 +947,35 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* ======================================================
+      {/* =====================================================
           GUEST DETAILS MODAL
       ====================================================== */}
       {selectedGuest && (
         <div className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-sm flex items-center justify-center p-5">
-
           <div className="w-full max-w-lg rounded-3xl bg-surface shadow-2xl border border-outline-variant/20 overflow-hidden">
 
             <div className="p-6 border-b border-outline-variant/20 flex items-center justify-between">
               <div>
-
                 <p className="font-label-caps text-label-caps text-primary">
                   GUEST DETAILS
                 </p>
 
                 <h3 className="font-headline-md text-on-surface">
-                  {selectedGuest.firstName}{" "}
-                  {selectedGuest.lastName}
+                  {
+                    selectedGuest.firstName
+                  }{" "}
+                  {
+                    selectedGuest.lastName
+                  }
                 </h3>
-
               </div>
 
               <button
                 type="button"
                 onClick={() =>
-                  setSelectedGuest(null)
+                  setSelectedGuest(
+                    null
+                  )
                 }
                 className="w-10 h-10 rounded-full bg-surface-container-low flex items-center justify-center hover:text-primary transition"
                 aria-label="Close guest details"
@@ -861,23 +987,28 @@ export default function AdminPage() {
             </div>
 
             <div className="p-6 space-y-5">
-
               <DetailRow
                 icon="mail"
                 label="Email"
-                value={selectedGuest.email}
+                value={
+                  selectedGuest.email
+                }
               />
 
               <DetailRow
                 icon="phone"
                 label="Phone"
-                value={selectedGuest.phone}
+                value={
+                  selectedGuest.phone
+                }
               />
 
               <DetailRow
                 icon="how_to_reg"
                 label="Attendance"
-                value={selectedGuest.attendance}
+                value={
+                  selectedGuest.attendance
+                }
               />
 
               <DetailRow
@@ -897,13 +1028,14 @@ export default function AdminPage() {
                 </p>
 
                 <p className="font-body-sm text-on-surface-variant leading-relaxed">
-                  {selectedGuest.message ||
-                    "No message submitted."}
+                  {
+                    selectedGuest.message ||
+                    "No message submitted."
+                  }
                 </p>
               </div>
 
               <div className="pt-3 flex gap-3">
-
                 <a
                   href={`mailto:${selectedGuest.email}`}
                   className="flex-1 inline-flex items-center justify-center gap-2 rounded-full border border-primary text-primary px-5 py-3 font-label-caps text-label-caps hover:bg-primary hover:text-on-primary transition"
@@ -926,7 +1058,6 @@ export default function AdminPage() {
                 >
                   WhatsApp
                 </a>
-
               </div>
             </div>
           </div>
@@ -959,16 +1090,20 @@ function StatCard({
     | "gold";
 }) {
   const styles = {
-    primary: "bg-primary/10 text-primary",
-    green: "bg-green-50 text-green-700",
-    red: "bg-red-50 text-red-600",
-    amber: "bg-amber-50 text-amber-700",
-    gold: "bg-amber-50 text-amber-800",
+    primary:
+      "bg-primary/10 text-primary",
+    green:
+      "bg-green-50 text-green-700",
+    red:
+      "bg-red-50 text-red-600",
+    amber:
+      "bg-amber-50 text-amber-700",
+    gold:
+      "bg-amber-50 text-amber-800",
   };
 
   return (
     <div className="rounded-2xl bg-surface border border-outline-variant/25 p-6 shadow-[0_6px_24px_rgba(0,0,0,0.06)]">
-
       <div
         className={`w-11 h-11 rounded-full flex items-center justify-center mb-5 ${styles[accent]}`}
       >
@@ -1011,7 +1146,6 @@ function QuickAction({
 }) {
   return (
     <div className="rounded-2xl bg-surface border border-outline-variant/25 p-6 shadow-[0_6px_24px_rgba(0,0,0,0.06)]">
-
       <div className="w-11 h-11 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-4">
         <span className="material-symbols-outlined">
           {icon}
@@ -1052,9 +1186,7 @@ function SectionCard({
 }) {
   return (
     <section className="rounded-3xl bg-surface border border-outline-variant/25 shadow-[0_8px_28px_rgba(0,0,0,0.06)] overflow-hidden">
-
       <div className="p-6 md:p-7 border-b border-outline-variant/15 flex items-center justify-between gap-4">
-
         <h3 className="font-headline-md text-on-surface">
           {title}
         </h3>
@@ -1083,10 +1215,8 @@ function GuestTable({
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[760px]">
-
         <thead>
           <tr className="text-left border-b border-outline-variant/20">
-
             <th className="px-4 py-3 font-label-caps text-label-caps text-on-surface-variant">
               Guest
             </th>
@@ -1130,7 +1260,9 @@ function GuestTable({
                 <td className="px-4 py-4">
                   <button
                     type="button"
-                    onClick={() => onSelect(guest)}
+                    onClick={() =>
+                      onSelect(guest)
+                    }
                     className="text-left"
                   >
                     <p className="font-body-sm font-semibold text-on-surface hover:text-primary">
@@ -1152,7 +1284,9 @@ function GuestTable({
 
                 <td className="px-4 py-4">
                   <StatusBadge
-                    status={guest.attendance}
+                    status={
+                      guest.attendance
+                    }
                   />
                 </td>
 
@@ -1174,7 +1308,9 @@ function GuestTable({
                 <td className="px-4 py-4 text-right">
                   <button
                     type="button"
-                    onClick={() => onSelect(guest)}
+                    onClick={() =>
+                      onSelect(guest)
+                    }
                     className="w-9 h-9 rounded-full hover:bg-primary/10 hover:text-primary transition"
                     aria-label={`View ${guest.firstName} ${guest.lastName}`}
                   >
@@ -1202,9 +1338,12 @@ function StatusBadge({
   status: Attendance;
 }) {
   const styles = {
-    Accepted: "bg-green-50 text-green-700",
-    Declined: "bg-red-50 text-red-600",
-    Pending: "bg-amber-50 text-amber-700",
+    Accepted:
+      "bg-green-50 text-green-700",
+    Declined:
+      "bg-red-50 text-red-600",
+    Pending:
+      "bg-amber-50 text-amber-700",
   };
 
   return (
@@ -1231,7 +1370,6 @@ function DetailRow({
 }) {
   return (
     <div className="flex items-start gap-3">
-
       <span className="material-symbols-outlined text-primary">
         {icon}
       </span>

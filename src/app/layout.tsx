@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
-import { Playfair_Display, Montserrat } from "next/font/google";
+import {
+  Playfair_Display,
+  Montserrat,
+} from "next/font/google";
 import "./globals.css";
 import SiteChrome from "@/components/SiteChrome";
 
@@ -29,11 +32,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${playfair.variable} ${montserrat.variable}`}>
+    <html
+      lang="en"
+      className={`${playfair.variable} ${montserrat.variable}`}
+    >
       <head>
         <link
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=optional"
           rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
         />
       </head>
 

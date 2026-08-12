@@ -1,20 +1,39 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import {
+  FormEvent,
+  useEffect,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
+
+const DEMO_ADMIN_EMAIL =
+  "mnazinazizi@gmail.com";
+
+const DEMO_ADMIN_PASSWORD = "admin123";
+
+const ADMIN_SESSION_KEY =
+  "eternal_vows_admin_authenticated";
 
 export default function Footer() {
   const router = useRouter();
 
-  const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] =
+    useState(false);
 
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [password, setPassword] =
+    useState("");
 
-  // Prevent the page behind the modal from scrolling.
+  const [showPassword, setShowPassword] =
+    useState(false);
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
   useEffect(() => {
     if (!showAdminLogin) {
       document.body.style.overflow = "";
@@ -29,86 +48,88 @@ export default function Footer() {
   }, [showAdminLogin]);
 
   const openAdminLogin = () => {
-    setError("");
     setEmail("");
     setPassword("");
+    setError("");
     setShowPassword(false);
     setShowAdminLogin(true);
   };
 
   const closeAdminLogin = () => {
+    if (loading) {
+      return;
+    }
+
     setShowAdminLogin(false);
     setError("");
   };
 
   const handleAdminLogin = async (
-    e: FormEvent<HTMLFormElement>
+    event: FormEvent<HTMLFormElement>
   ) => {
-    e.preventDefault();
+    event.preventDefault();
 
     setError("");
 
-    if (!email.trim() || !password.trim()) {
+    const cleanEmail =
+      email.trim().toLowerCase();
+
+    if (!cleanEmail || !password) {
       setError(
         "Please enter your admin email and password."
       );
       return;
     }
 
-    try {
-      setLoading(true);
+    setLoading(true);
 
-      /*
-       * FRONTEND DEMO ONLY
-       *
-       * We will replace this with real authentication later.
-       */
+    await new Promise((resolve) =>
+      setTimeout(resolve, 600)
+    );
 
-      await new Promise((resolve) =>
-        setTimeout(resolve, 700)
+    if (
+      cleanEmail ===
+        DEMO_ADMIN_EMAIL.toLowerCase() &&
+      password === DEMO_ADMIN_PASSWORD
+    ) {
+      sessionStorage.setItem(
+        ADMIN_SESSION_KEY,
+        "true"
       );
 
-      if (
-        email === "admin@example.com" &&
-        password === "admin123"
-      ) {
-        setShowAdminLogin(false);
-        router.push("/admin");
-        return;
-      }
-
-      setError(
-        "Invalid admin credentials. This area is restricted to authorized administrators."
-      );
-    } catch (error) {
-      console.error(error);
-      setError(
-        "Something went wrong. Please try again."
-      );
-    } finally {
+      setShowAdminLogin(false);
       setLoading(false);
+
+      router.push("/admin");
+      return;
     }
+
+    setLoading(false);
+
+    setError(
+      "Invalid admin credentials. This area is restricted to authorized administrators."
+    );
   };
 
   return (
     <>
-      {/* =========================================================
+      {/* =====================================================
           FOOTER
-      ========================================================= */}
+      ====================================================== */}
       <footer className="bg-surface-container-low border-t border-outline-variant/15">
         <div className="max-w-6xl mx-auto px-container-padding py-12">
           <div className="text-center">
 
-            {/* Wedding name */}
             <h2 className="font-headline-sm text-primary">
               Elena &amp; Marcus
             </h2>
 
-            {/* Admin login trigger */}
             <div className="mt-5">
               <button
                 type="button"
-                onClick={openAdminLogin}
+                onClick={
+                  openAdminLogin
+                }
                 className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-surface px-5 py-2.5 text-primary font-label-caps text-label-caps hover:bg-primary hover:text-on-primary transition-all duration-300"
               >
                 <span className="material-symbols-outlined text-base">
@@ -119,7 +140,6 @@ export default function Footer() {
               </button>
             </div>
 
-            {/* Closing message */}
             <div className="mt-8 pt-6 border-t border-outline-variant/15">
               <p className="font-body-sm text-on-surface-variant">
                 With love, Elena &amp; Marcus
@@ -129,9 +149,9 @@ export default function Footer() {
         </div>
       </footer>
 
-      {/* =========================================================
-          FLOATING ADMIN LOGIN MODAL
-      ========================================================= */}
+      {/* =====================================================
+          ADMIN LOGIN MODAL
+      ====================================================== */}
       {showAdminLogin && (
         <div
           className="fixed inset-0 z-[999] flex items-center justify-center p-5"
@@ -139,21 +159,24 @@ export default function Footer() {
           aria-modal="true"
           aria-labelledby="admin-login-title"
         >
-          {/* Blurred background */}
-          <div
-            className="absolute inset-0 bg-black/25 backdrop-blur-md"
+          {/* Background blur */}
+          <button
+            type="button"
+            aria-label="Close admin login"
             onClick={closeAdminLogin}
+            className="absolute inset-0 bg-black/30 backdrop-blur-md cursor-default"
           />
 
-          {/* Floating login card */}
+          {/* Floating login */}
           <div className="relative z-10 w-full max-w-md">
-            <div className="rounded-[28px] bg-surface/95 backdrop-blur-xl border border-white/70 shadow-[0_25px_80px_rgba(0,0,0,0.25)] p-6 md:p-8">
+            <div className="relative rounded-[28px] bg-surface/95 backdrop-blur-xl border border-white/70 shadow-[0_25px_80px_rgba(0,0,0,0.25)] p-6 md:p-8">
 
               {/* Close */}
               <button
                 type="button"
                 onClick={closeAdminLogin}
-                className="absolute top-4 right-4 w-9 h-9 rounded-full bg-surface-container-low flex items-center justify-center text-on-surface-variant hover:text-primary transition"
+                disabled={loading}
+                className="absolute top-4 right-4 w-9 h-9 rounded-full bg-surface-container-low flex items-center justify-center text-on-surface-variant hover:text-primary transition disabled:opacity-40"
                 aria-label="Close admin login"
               >
                 <span className="material-symbols-outlined text-lg">
@@ -161,11 +184,8 @@ export default function Footer() {
                 </span>
               </button>
 
-              {/* =================================================
-                  HEADER
-              ================================================= */}
+              {/* Header */}
               <div className="flex items-center gap-4 mb-7 pr-8">
-
                 <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
                   <span className="material-symbols-outlined text-2xl">
                     admin_panel_settings
@@ -186,14 +206,10 @@ export default function Footer() {
                 </div>
               </div>
 
-              {/* =================================================
-                  FORM
-              ================================================= */}
               <form
                 onSubmit={handleAdminLogin}
                 className="space-y-5"
               >
-
                 {/* Email */}
                 <div>
                   <label
@@ -213,7 +229,9 @@ export default function Footer() {
                       type="email"
                       value={email}
                       onChange={(e) =>
-                        setEmail(e.target.value)
+                        setEmail(
+                          e.target.value
+                        )
                       }
                       placeholder="Enter your admin email"
                       autoComplete="email"
@@ -246,7 +264,9 @@ export default function Footer() {
                       }
                       value={password}
                       onChange={(e) =>
-                        setPassword(e.target.value)
+                        setPassword(
+                          e.target.value
+                        )
                       }
                       placeholder="Enter your password"
                       autoComplete="current-password"
@@ -286,7 +306,7 @@ export default function Footer() {
                   </div>
                 )}
 
-                {/* Admin login */}
+                {/* Login */}
                 <button
                   type="submit"
                   disabled={loading}
@@ -311,7 +331,7 @@ export default function Footer() {
                   )}
                 </button>
 
-                {/* Security message */}
+                {/* Security text */}
                 <div className="pt-4 border-t border-outline-variant/15">
                   <div className="flex items-start gap-3">
                     <span className="material-symbols-outlined text-tertiary text-lg">
@@ -319,18 +339,23 @@ export default function Footer() {
                     </span>
 
                     <p className="font-body-sm text-on-surface-variant leading-relaxed">
-                      Authorized administrators only
+                      Authorized administrators only. Guest
+                      accounts cannot access the wedding management
+                      dashboard.
                     </p>
                   </div>
                 </div>
 
-                {/* Back to wedding */}
+                {/* Back */}
                 <button
                   type="button"
-                  onClick={closeAdminLogin}
-                  className="w-full text-center font-body-sm text-primary hover:underline pt-1"
+                  onClick={
+                    closeAdminLogin
+                  }
+                  disabled={loading}
+                  className="w-full text-center font-body-sm text-primary hover:underline pt-1 disabled:opacity-50"
                 >
-                  ← Back
+                  ← Back to wedding website
                 </button>
               </form>
             </div>

@@ -1,23 +1,41 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { FormEvent, useState } from "react";
+
+type Attendance = "yes" | "no" | null;
 
 export default function RsvpPage() {
-  const [attending, setAttending] = useState<"yes" | "no" | null>(null);
-  const [submitted, setSubmitted] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [attending, setAttending] =
+    useState<Attendance>(null);
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const [submitted, setSubmitted] =
+    useState(false);
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const handleAttendanceClick = (
+    value: "yes" | "no"
+  ) => {
+    setAttending((current) =>
+      current === value ? null : value
+    );
+  };
+
+  const handleSubmit = async (
+    e: FormEvent<HTMLFormElement>
+  ) => {
     e.preventDefault();
 
-    // Prevent submission if no attendance choice has been made
     if (attending === null) {
       return;
     }
 
     setLoading(true);
 
-    await new Promise((r) => setTimeout(r, 800));
+    await new Promise((resolve) =>
+      setTimeout(resolve, 800)
+    );
 
     setLoading(false);
     setSubmitted(true);
@@ -26,7 +44,7 @@ export default function RsvpPage() {
   if (submitted) {
     return (
       <main className="min-h-[70vh] flex items-center justify-center px-container-padding pt-28 pb-16">
-        <div className="glass-panel rounded-xl p-10 max-w-md text-center ambient-shadow">
+        <div className="glass-panel rounded-2xl p-10 max-w-md text-center ambient-shadow">
           <span className="material-symbols-outlined text-tertiary text-5xl mb-4">
             check_circle
           </span>
@@ -35,9 +53,9 @@ export default function RsvpPage() {
             Thank You!
           </h1>
 
-          <p className="font-body-md text-on-surface-variant">
-            Your RSVP has been received. We can&apos;t wait to celebrate with
-            you.
+          <p className="font-body-md text-on-surface-variant leading-relaxed">
+            Your RSVP has been received. We can&apos;t wait to
+            celebrate with you.
           </p>
         </div>
       </main>
@@ -75,9 +93,11 @@ export default function RsvpPage() {
 
         <form
           onSubmit={handleSubmit}
-          className="glass-panel rounded-xl p-6 md:p-10 ambient-shadow space-y-8"
+          className="glass-panel rounded-2xl p-6 md:p-10 ambient-shadow space-y-8"
         >
-          {/* Guest Details */}
+          {/* =====================================================
+              GUEST DETAILS
+          ====================================================== */}
           <fieldset>
             <legend className="flex items-center gap-2 font-label-caps text-label-caps text-secondary mb-4">
               <span className="material-symbols-outlined text-lg">
@@ -138,7 +158,9 @@ export default function RsvpPage() {
             </div>
           </fieldset>
 
-          {/* Attendance */}
+          {/* =====================================================
+              ATTENDANCE
+          ====================================================== */}
           <fieldset>
             <legend className="flex items-center gap-2 font-label-caps text-label-caps text-secondary mb-4">
               <span className="material-symbols-outlined text-lg">
@@ -147,68 +169,84 @@ export default function RsvpPage() {
               Will you attend?
             </legend>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div
+              role="radiogroup"
+              aria-label="Will you attend?"
+              className="grid grid-cols-1 sm:grid-cols-2 gap-3"
+            >
               {/* Accept */}
-              <label
-                className={`cursor-pointer rounded-xl border-2 p-4 transition ${
+              <button
+                type="button"
+                role="radio"
+                aria-checked={attending === "yes"}
+                onClick={() =>
+                  handleAttendanceClick("yes")
+                }
+                className={`text-left rounded-xl border-2 p-4 transition ${
                   attending === "yes"
-                    ? "border-tertiary bg-tertiary/10"
+                    ? "border-tertiary bg-tertiary/10 shadow-sm"
                     : "border-outline-variant/30 hover:border-tertiary/50"
                 }`}
               >
-                <input
-                  type="radio"
-                  name="attendance"
-                  value="yes"
-                  checked={attending === "yes"}
-                  onChange={() => setAttending("yes")}
-                  required={attending === null}
-                  className="sr-only"
-                />
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <span className="font-body-md font-semibold text-on-surface block">
+                      Joyfully Accept
+                    </span>
 
-                <span className="font-body-md font-semibold text-on-surface block">
-                  Joyfully Accept
-                </span>
+                    <span className="font-body-sm text-on-surface-variant">
+                      Wouldn&apos;t miss it
+                    </span>
+                  </div>
 
-                <span className="font-body-sm text-on-surface-variant">
-                  Wouldn&apos;t miss it
-                </span>
-              </label>
+                  {attending === "yes" && (
+                    <span className="material-symbols-outlined text-tertiary">
+                      check_circle
+                    </span>
+                  )}
+                </div>
+              </button>
 
               {/* Decline */}
-              <label
-                className={`cursor-pointer rounded-xl border-2 p-4 transition ${
+              <button
+                type="button"
+                role="radio"
+                aria-checked={attending === "no"}
+                onClick={() =>
+                  handleAttendanceClick("no")
+                }
+                className={`text-left rounded-xl border-2 p-4 transition ${
                   attending === "no"
-                    ? "border-secondary bg-secondary/10"
+                    ? "border-secondary bg-secondary/10 shadow-sm"
                     : "border-outline-variant/30 hover:border-secondary/50"
                 }`}
               >
-                <input
-                  type="radio"
-                  name="attendance"
-                  value="no"
-                  checked={attending === "no"}
-                  onChange={() => setAttending("no")}
-                  required={attending === null}
-                  className="sr-only"
-                />
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <span className="font-body-md font-semibold text-on-surface block">
+                      Regretfully Decline
+                    </span>
 
-                <span className="font-body-md font-semibold text-on-surface block">
-                  Regretfully Decline
-                </span>
+                    <span className="font-body-sm text-on-surface-variant">
+                      Sending love from afar
+                    </span>
+                  </div>
 
-                <span className="font-body-sm text-on-surface-variant">
-                  Sending love from afar
-                </span>
-              </label>
+                  {attending === "no" && (
+                    <span className="material-symbols-outlined text-secondary">
+                      check_circle
+                    </span>
+                  )}
+                </div>
+              </button>
             </div>
 
-            {/* Clear Selection */}
+            {/* Clear response */}
             {attending !== null && (
               <button
                 type="button"
                 onClick={() => setAttending(null)}
-                className="mt-4 inline-flex items-center gap-2 text-sm text-on-surface-variant hover:text-primary transition"
+                className="mt-4 inline-flex items-center gap-2 rounded-full border border-outline-variant/30 px-4 py-2 text-on-surface-variant font-body-sm hover:border-primary hover:text-primary transition"
               >
                 <span className="material-symbols-outlined text-base">
                   close
@@ -219,7 +257,9 @@ export default function RsvpPage() {
             )}
           </fieldset>
 
-          {/* Note */}
+          {/* =====================================================
+              NOTE
+          ====================================================== */}
           <fieldset>
             <legend className="flex items-center gap-2 font-label-caps text-label-caps text-secondary mb-4">
               <span className="material-symbols-outlined text-lg">
@@ -236,10 +276,14 @@ export default function RsvpPage() {
             />
           </fieldset>
 
-          {/* Submit */}
+          {/* =====================================================
+              SUBMIT
+          ====================================================== */}
           <button
             type="submit"
-            disabled={loading || attending === null}
+            disabled={
+              loading || attending === null
+            }
             className="w-full bg-primary text-on-primary font-label-caps text-label-caps py-3.5 rounded-full hover:brightness-110 transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed ambient-shadow"
           >
             {loading ? "Sending..." : "Submit RSVP"}
