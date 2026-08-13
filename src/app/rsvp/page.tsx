@@ -1,6 +1,8 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { WEDDING_ID } from "@/lib/wedding";
 
 type Attendance = "yes" | "no" | null;
 
@@ -14,8 +16,30 @@ export default function RsvpPage() {
   const [submitted, setSubmitted] =
     useState(false);
 
+  const [formVersion, setFormVersion] =
+    useState(0);
+
   const [loading, setLoading] =
     useState(false);
+
+  const [submitError, setSubmitError] =
+    useState("");
+
+  useEffect(() => {
+    if (!submitted) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setSubmitted(false);
+      setAttending(null);
+      setInvitedGuests(0);
+      setSubmitError("");
+      setFormVersion((current) => current + 1);
+    }, 5000);
+
+    return () => window.clearTimeout(timer);
+  }, [submitted]);
 
   const handleAttendanceClick = (
     value: "yes" | "no"
@@ -38,24 +62,41 @@ export default function RsvpPage() {
       return;
     }
 
+    setSubmitError("");
+
     const formData = new FormData(e.currentTarget);
     const rsvpData = {
-      firstName: String(formData.get("firstName") || ""),
-      lastName: String(formData.get("lastName") || ""),
-      email: String(formData.get("email") || ""),
-      attendance: attending,
-      invitedGuests: attending === "yes" ? invitedGuests : 0,
-      message: String(formData.get("message") || ""),
+      p_wedding_id: WEDDING_ID,
+      p_first_name: String(formData.get("firstName") || "").trim(),
+      p_last_name: String(formData.get("lastName") || "").trim(),
+      p_email: String(formData.get("email") || "")
+        .trim()
+        .toLowerCase(),
+      p_attendance:
+        attending === "yes"
+          ? "attending"
+          : "not_attending",
+      p_invited_guests:
+        attending === "yes" ? invitedGuests : 0,
+      p_message: String(formData.get("message") || "").trim(),
     };
-
-    // This is the RSVP shape that will be persisted when Supabase is connected.
-    console.log("RSVP ready to submit:", rsvpData);
 
     setLoading(true);
 
-    await new Promise((resolve) =>
-      setTimeout(resolve, 800)
-    );
+    const supabase = createClient();
+    const { error } = await supabase
+      .rpc("submit_public_rsvp", rsvpData);
+
+    if (error) {
+      console.error("RSVP submission failed:", error);
+      setSubmitError(
+        error.message.includes("already submitted")
+          ? "This email address has already reserved an RSVP."
+          : "We could not save your RSVP. Please try again."
+      );
+      setLoading(false);
+      return;
+    }
 
     setLoading(false);
     setSubmitted(true);
@@ -76,6 +117,10 @@ export default function RsvpPage() {
           <p className="font-body-md text-on-surface-variant leading-relaxed">
             Your RSVP has been received. We can&apos;t wait to
             celebrate with you.
+          </p>
+
+          <p className="font-body-sm text-on-surface-variant mt-4">
+            Returning to the form in a few seconds...
           </p>
         </div>
       </main>
@@ -112,6 +157,7 @@ export default function RsvpPage() {
         </div>
 
         <form
+          key={formVersion}
           onSubmit={handleSubmit}
           className="glass-panel rounded-2xl p-6 md:p-10 ambient-shadow space-y-8"
         >
@@ -328,6 +374,15 @@ export default function RsvpPage() {
                 This does not include you.
               </p>
             </fieldset>
+          )}
+
+          {submitError && (
+            <p
+              role="alert"
+              className="rounded-md bg-error-container px-4 py-3 font-body-sm text-on-error-container"
+            >
+              {submitError}
+            </p>
           )}
 
           {/* =====================================================

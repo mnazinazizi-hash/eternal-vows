@@ -7,6 +7,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { downloadWeddingReportPdf } from "@/lib/reportPdf";
 
 type Attendance =
   | "Accepted"
@@ -27,11 +28,51 @@ type Guest = {
 
 type Contribution = {
   id: string;
+  guestId: string | null;
   contributor: string;
   amount: number;
   date: string;
   status: "Received" | "Pending";
 };
+
+type DashboardRsvp = {
+  id: string;
+  guest_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  attendance: string;
+  number_of_guests: number;
+  message: string | null;
+  submitted_at: string;
+};
+
+type DashboardContribution = {
+  id: string;
+  guest_id: string | null;
+  contributor: string | null;
+  amount: number | string;
+  created_at: string;
+  status: "Received" | "Pending";
+};
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("en-KE", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(value));
+}
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat("en-KE", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
 
 export default function AdminPage() {
   const supabase = useMemo(() => createClient(), []);
@@ -42,9 +83,14 @@ export default function AdminPage() {
     setCheckingAccess,
   ] = useState(true);
 
-  // These will be populated from Supabase in the next phase.
-  const guests: Guest[] = [];
-  const contributions: Contribution[] = [];
+  const [guests, setGuests] =
+    useState<Guest[]>([]);
+
+  const [contributions, setContributions] =
+    useState<Contribution[]>([]);
+
+  const [dataError, setDataError] =
+    useState("");
 
   const [search, setSearch] =
     useState("");
@@ -75,7 +121,7 @@ export default function AdminPage() {
     });
 
   /* =========================================================
-     SUPABASE AUTH ACCESS CHECK
+     SUPABASE AUTH + DATA LOAD
   ========================================================== */
   useEffect(() => {
     let mounted = true;
@@ -89,6 +135,94 @@ export default function AdminPage() {
         router.replace("/");
         return;
       }
+
+      const { data: membership, error: membershipError } =
+        await supabase
+          .from("wedding_members")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("role", "admin")
+          .maybeSingle();
+
+      if (membershipError || !membership) {
+        router.replace("/");
+        return;
+      }
+
+      const [rsvpResult, contributionResult] =
+        await Promise.all([
+          supabase.rpc("get_admin_dashboard_rsvps"),
+          supabase.rpc("get_admin_dashboard_contributions"),
+        ]);
+
+      if (!mounted) {
+        return;
+      }
+
+      if (
+        rsvpResult.error ||
+        contributionResult.error
+      ) {
+        console.error(
+          "Admin data load failed:",
+          rsvpResult.error ||
+            contributionResult.error
+        );
+        setDataError(
+          "We could not load the dashboard data. Please refresh and try again."
+        );
+        setCheckingAccess(false);
+        return;
+      }
+
+      const loadedContributions: Contribution[] = (
+        (contributionResult.data || []) as DashboardContribution[]
+      ).map((contribution) => ({
+        id: contribution.id,
+        guestId: contribution.guest_id,
+        contributor: contribution.contributor || "Anonymous",
+        amount: Number(contribution.amount),
+        date: formatDate(contribution.created_at),
+        status: contribution.status as Contribution["status"],
+      }));
+
+      const paymentsByGuest = new Map<string, number>();
+      loadedContributions
+        .filter(
+          (contribution) =>
+            contribution.status === "Received" &&
+            contribution.guestId
+        )
+        .forEach((contribution) => {
+          paymentsByGuest.set(
+            contribution.guestId!,
+            (paymentsByGuest.get(contribution.guestId!) || 0) +
+              contribution.amount
+          );
+        });
+
+      setContributions(loadedContributions);
+      setGuests(
+        ((rsvpResult.data || []) as DashboardRsvp[]).map((rsvp) => {
+          return {
+            id: rsvp.id,
+            firstName: rsvp.first_name || "Unknown",
+            lastName: rsvp.last_name || "Guest",
+            email: rsvp.email || "No email provided",
+            attendance:
+              rsvp.attendance === "attending"
+                ? "Accepted"
+                : rsvp.attendance === "not_attending"
+                  ? "Declined"
+                  : "Pending",
+            invitedGuests: rsvp.number_of_guests,
+            paymentReceived:
+              paymentsByGuest.get(rsvp.guest_id || "") || 0,
+            message: rsvp.message || "",
+            submitted: formatDateTime(rsvp.submitted_at),
+          };
+        })
+      );
 
       if (mounted) {
         setCheckingAccess(false);
@@ -209,6 +343,57 @@ export default function AdminPage() {
         "Excel export requires the xlsx package. Run: npm install xlsx"
       );
     }
+  };
+
+  const exportToPdf = async () => {
+    await downloadWeddingReportPdf({
+      title: "Wedding RSVP Report",
+      filename: "Elena-and-Marcus-Wedding-RSVP-Report.pdf",
+      metrics: [
+        {
+          label: "Total Responses",
+          value: guests.length,
+          detail: "People have responded",
+          accent: "gold",
+        },
+        {
+          label: "Accepted",
+          value: accepted,
+          detail: "Attending the wedding",
+          accent: "green",
+        },
+        {
+          label: "Declined",
+          value: declined,
+          detail: "Unable to attend",
+          accent: "rose",
+        },
+        {
+          label: "Estimated Guests",
+          value: estimatedGuests,
+          detail: "Including additional guests",
+          accent: "cream",
+        },
+      ],
+      columns: [
+        "Guest",
+        "Email",
+        "Attendance",
+        "Additional guests",
+        "Note",
+        "Submitted",
+      ],
+      rows: guests.map((guest) => [
+        `${guest.firstName} ${guest.lastName}`,
+        guest.email,
+        guest.attendance,
+        guest.attendance === "Accepted"
+          ? String(guest.invitedGuests)
+          : "0",
+        guest.message || "No note submitted.",
+        guest.submitted,
+      ]),
+    });
   };
 
   const publishAnnouncement = () => {
@@ -412,6 +597,15 @@ export default function AdminPage() {
       <div className="lg:ml-64 min-h-screen">
         <div className="p-5 md:p-8 max-w-7xl mx-auto pt-24 lg:pt-8">
 
+          {dataError && (
+            <p
+              role="alert"
+              className="mb-6 rounded-xl bg-error-container px-4 py-3 font-body-sm text-on-error-container"
+            >
+              {dataError}
+            </p>
+          )}
+
           {/* =================================================
               OVERVIEW
           ================================================== */}
@@ -570,6 +764,7 @@ export default function AdminPage() {
             <SectionCard
               title="RSVPs"
               action={
+                <div className="flex flex-wrap items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={
@@ -583,6 +778,18 @@ export default function AdminPage() {
 
                   Export Excel
                 </button>
+                <button
+                  type="button"
+                  onClick={exportToPdf}
+                  className="inline-flex items-center gap-2 rounded-full border border-primary text-primary px-5 py-2.5 font-label-caps text-label-caps hover:bg-primary hover:text-on-primary transition"
+                >
+                  <span className="material-symbols-outlined text-lg">
+                    picture_as_pdf
+                  </span>
+
+                  Download PDF
+                </button>
+                </div>
               }
             >
               <div className="flex flex-col md:flex-row gap-4 mb-6">
