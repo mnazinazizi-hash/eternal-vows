@@ -3,20 +3,15 @@
 import {
   FormEvent,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
-
-const DEMO_ADMIN_EMAIL =
-  "mnazinazizi@gmail.com";
-
-const DEMO_ADMIN_PASSWORD = "admin123";
-
-const ADMIN_SESSION_KEY =
-  "eternal_vows_admin_authenticated";
+import { createClient } from "@/lib/supabase/client";
 
 export default function Footer() {
   const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
 
   const [showAdminLogin, setShowAdminLogin] =
     useState(false);
@@ -83,32 +78,35 @@ export default function Footer() {
 
     setLoading(true);
 
-    await new Promise((resolve) =>
-      setTimeout(resolve, 600)
-    );
+    try {
+      const { data, error } =
+        await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password,
+        });
 
-    if (
-      cleanEmail ===
-        DEMO_ADMIN_EMAIL.toLowerCase() &&
-      password === DEMO_ADMIN_PASSWORD
-    ) {
-      sessionStorage.setItem(
-        ADMIN_SESSION_KEY,
-        "true"
-      );
+      if (error || !data.user) {
+        setError(
+          error?.message ||
+            "We could not verify your account. Please try again."
+        );
+        return;
+      }
 
       setShowAdminLogin(false);
-      setLoading(false);
+      setEmail("");
+      setPassword("");
+      setError("");
 
       router.push("/admin");
-      return;
+    } catch (error) {
+      console.error("Admin login failed:", error);
+      setError(
+        "Something went wrong while signing in. Please try again."
+      );
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
-
-    setError(
-      "Invalid admin credentials. This area is restricted to authorized administrators."
-    );
   };
 
   return (
@@ -127,9 +125,7 @@ export default function Footer() {
             <div className="mt-5">
               <button
                 type="button"
-                onClick={
-                  openAdminLogin
-                }
+                onClick={openAdminLogin}
                 className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-surface px-5 py-2.5 text-primary font-label-caps text-label-caps hover:bg-primary hover:text-on-primary transition-all duration-300"
               >
                 <span className="material-symbols-outlined text-base">
@@ -145,6 +141,7 @@ export default function Footer() {
                 With love, Elena &amp; Marcus
               </p>
             </div>
+
           </div>
         </div>
       </footer>
@@ -229,9 +226,7 @@ export default function Footer() {
                       type="email"
                       value={email}
                       onChange={(e) =>
-                        setEmail(
-                          e.target.value
-                        )
+                        setEmail(e.target.value)
                       }
                       placeholder="Enter your admin email"
                       autoComplete="email"
@@ -339,9 +334,9 @@ export default function Footer() {
                     </span>
 
                     <p className="font-body-sm text-on-surface-variant leading-relaxed">
-                      Authorized administrators only. Guest
-                      accounts cannot access the wedding management
-                      dashboard.
+                      Authorized administrators only.
+                      Guest accounts cannot access the
+                      wedding management dashboard.
                     </p>
                   </div>
                 </div>
@@ -349,15 +344,14 @@ export default function Footer() {
                 {/* Back */}
                 <button
                   type="button"
-                  onClick={
-                    closeAdminLogin
-                  }
+                  onClick={closeAdminLogin}
                   disabled={loading}
                   className="w-full text-center font-body-sm text-primary hover:underline pt-1 disabled:opacity-50"
                 >
                   ← Back to wedding website
                 </button>
               </form>
+
             </div>
           </div>
         </div>

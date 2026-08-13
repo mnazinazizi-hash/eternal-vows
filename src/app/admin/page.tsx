@@ -6,9 +6,7 @@ import {
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
-
-const ADMIN_SESSION_KEY =
-  "eternal_vows_admin_authenticated";
+import { createClient } from "@/lib/supabase/client";
 
 type Attendance =
   | "Accepted"
@@ -16,119 +14,27 @@ type Attendance =
   | "Pending";
 
 type Guest = {
-  id: number;
+  id: string;
   firstName: string;
   lastName: string;
   email: string;
-  phone: string;
   attendance: Attendance;
-  plusOne: boolean;
-  plusOneName?: string;
+  invitedGuests: number;
+  paymentReceived: number;
   message: string;
   submitted: string;
 };
 
 type Contribution = {
-  id: number;
-  name: string;
+  id: string;
+  contributor: string;
   amount: number;
   date: string;
   status: "Received" | "Pending";
 };
 
-const initialGuests: Guest[] = [
-  {
-    id: 1,
-    firstName: "Jane",
-    lastName: "Wanjiku",
-    email: "jane@example.com",
-    phone: "0712 345 678",
-    attendance: "Accepted",
-    plusOne: true,
-    plusOneName: "David",
-    message:
-      "We are so excited to celebrate with you!",
-    submitted:
-      "12 Aug 2026, 10:42 AM",
-  },
-  {
-    id: 2,
-    firstName: "John",
-    lastName: "Kamau",
-    email: "john@example.com",
-    phone: "0722 456 789",
-    attendance: "Accepted",
-    plusOne: false,
-    message:
-      "Congratulations to you both!",
-    submitted:
-      "12 Aug 2026, 09:31 AM",
-  },
-  {
-    id: 3,
-    firstName: "Mary",
-    lastName: "Njeri",
-    email: "mary@example.com",
-    phone: "0701 998 234",
-    attendance: "Declined",
-    plusOne: false,
-    message:
-      "Wishing you both a beautiful marriage.",
-    submitted:
-      "11 Aug 2026, 04:18 PM",
-  },
-  {
-    id: 4,
-    firstName: "Peter",
-    lastName: "Mwangi",
-    email: "peter@example.com",
-    phone: "0798 234 111",
-    attendance: "Pending",
-    plusOne: false,
-    message: "",
-    submitted: "—",
-  },
-  {
-    id: 5,
-    firstName: "Grace",
-    lastName: "Achieng",
-    email: "grace@example.com",
-    phone: "0715 444 999",
-    attendance: "Accepted",
-    plusOne: true,
-    plusOneName: "Kevin",
-    message:
-      "Looking forward to the big day!",
-    submitted:
-      "10 Aug 2026, 08:12 PM",
-  },
-];
-
-const initialContributions: Contribution[] = [
-  {
-    id: 1,
-    name: "Jane Wanjiku",
-    amount: 5000,
-    date: "12 Aug 2026",
-    status: "Received",
-  },
-  {
-    id: 2,
-    name: "John Kamau",
-    amount: 2500,
-    date: "11 Aug 2026",
-    status: "Received",
-  },
-  {
-    id: 3,
-    name: "Grace Achieng",
-    amount: 10000,
-    date: "10 Aug 2026",
-    status: "Received",
-  },
-];
-
 export default function AdminPage() {
+  const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
   const [
@@ -136,13 +42,9 @@ export default function AdminPage() {
     setCheckingAccess,
   ] = useState(true);
 
-  const [guests] =
-    useState<Guest[]>(initialGuests);
-
-  const [contributions] =
-    useState<Contribution[]>(
-      initialContributions
-    );
+  // These will be populated from Supabase in the next phase.
+  const guests: Guest[] = [];
+  const contributions: Contribution[] = [];
 
   const [search, setSearch] =
     useState("");
@@ -173,21 +75,32 @@ export default function AdminPage() {
     });
 
   /* =========================================================
-     FRONTEND-ONLY ACCESS CHECK
+     SUPABASE AUTH ACCESS CHECK
   ========================================================== */
   useEffect(() => {
-    const authenticated =
-      sessionStorage.getItem(
-        ADMIN_SESSION_KEY
-      ) === "true";
+    let mounted = true;
 
-    if (!authenticated) {
-      router.replace("/");
-      return;
-    }
+    const checkAccess = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    setCheckingAccess(false);
-  }, [router]);
+      if (!user) {
+        router.replace("/");
+        return;
+      }
+
+      if (mounted) {
+        setCheckingAccess(false);
+      }
+    };
+
+    checkAccess();
+
+    return () => {
+      mounted = false;
+    };
+  }, [router, supabase]);
 
   const accepted = guests.filter(
     (guest) =>
@@ -199,14 +112,13 @@ export default function AdminPage() {
       guest.attendance === "Declined"
   ).length;
 
-  const plusOnes = guests.filter(
-    (guest) =>
-      guest.attendance === "Accepted" &&
-      guest.plusOne
-  ).length;
-
-  const totalAttending =
-    accepted + plusOnes;
+  const estimatedGuests = guests.reduce(
+    (total, guest) =>
+      guest.attendance === "Accepted"
+        ? total + 1 + guest.invitedGuests
+        : total,
+    0
+  );
 
   const totalContributions =
     contributions.reduce(
@@ -226,8 +138,7 @@ export default function AdminPage() {
           .includes(normalizedSearch) ||
         guest.email
           .toLowerCase()
-          .includes(normalizedSearch) ||
-        guest.phone.includes(search);
+          .includes(normalizedSearch);
 
       const matchesFilter =
         filter === "All" ||
@@ -253,15 +164,16 @@ export default function AdminPage() {
           "Last Name":
             guest.lastName,
           Email: guest.email,
-          Phone: guest.phone,
           Attendance:
             guest.attendance,
-          "Plus One":
-            guest.plusOne
-              ? "Yes"
-              : "No",
-          "Plus One Name":
-            guest.plusOneName || "",
+          "Guests Coming Along":
+            guest.invitedGuests,
+          "Estimated Party Size":
+            guest.attendance === "Accepted"
+              ? guest.invitedGuests + 1
+              : 0,
+          "Payment Received":
+            guest.paymentReceived,
           Message:
             guest.message,
           "Submitted At":
@@ -324,11 +236,8 @@ export default function AdminPage() {
     );
   };
 
-  const handleLogout = () => {
-    sessionStorage.removeItem(
-      ADMIN_SESSION_KEY
-    );
-
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     router.replace("/");
   };
 
@@ -548,13 +457,21 @@ export default function AdminPage() {
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-7">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5 mb-7">
 
                 <StatCard
                   icon="groups"
-                  label="Total Responses"
+                  label="RSVP Responses"
                   value={guests.length}
-                  detail="Current guest records"
+                  detail="Submitted RSVP forms"
+                />
+
+                <StatCard
+                  icon="group"
+                  label="Estimated Guests"
+                  value={estimatedGuests}
+                  detail="Accepted guests and their parties"
+                  accent="green"
                 />
 
                 <StatCard
@@ -563,25 +480,23 @@ export default function AdminPage() {
                   value={
                     accepted
                   }
-                  detail={`${totalAttending} people expected`}
+                  detail="Joyfully attending"
                   accent="green"
                 />
 
                 <StatCard
                   icon="cancel"
                   label="Declined"
-                  value={
-                    declined
-                  }
+                  value={declined}
                   detail="Unable to attend"
                   accent="red"
                 />
 
                 <StatCard
                   icon="payments"
-                  label="Contributions"
+                  label="Payments Received"
                   value={`KES ${totalContributions.toLocaleString()}`}
-                  detail="Total received"
+                  detail="Confirmed contributions"
                   accent="gold"
                 />
               </div>
@@ -919,7 +834,7 @@ export default function AdminPage() {
                           className="border-b border-outline-variant/10"
                         >
                           <td className="px-4 py-4 font-body-sm font-semibold text-on-surface">
-                            {item.name}
+                            {item.contributor}
                           </td>
 
                           <td className="px-4 py-4 font-body-sm text-on-surface">
@@ -996,14 +911,6 @@ export default function AdminPage() {
               />
 
               <DetailRow
-                icon="phone"
-                label="Phone"
-                value={
-                  selectedGuest.phone
-                }
-              />
-
-              <DetailRow
                 icon="how_to_reg"
                 label="Attendance"
                 value={
@@ -1012,14 +919,25 @@ export default function AdminPage() {
               />
 
               <DetailRow
-                icon="person_add"
-                label="Plus One"
-                value={
-                  selectedGuest.plusOne
-                    ? selectedGuest.plusOneName ||
-                      "Yes"
-                    : "No"
-                }
+                icon="group_add"
+                label="Guests Coming Along"
+                value={String(selectedGuest.invitedGuests)}
+              />
+
+              <DetailRow
+                icon="groups"
+                label="Estimated Party Size"
+                value={String(
+                  selectedGuest.attendance === "Accepted"
+                    ? selectedGuest.invitedGuests + 1
+                    : 0
+                )}
+              />
+
+              <DetailRow
+                icon="payments"
+                label="Payment Received"
+                value={`KES ${selectedGuest.paymentReceived.toLocaleString()}`}
               />
 
               <div>
@@ -1035,28 +953,22 @@ export default function AdminPage() {
                 </p>
               </div>
 
-              <div className="pt-3 flex gap-3">
+              <DetailRow
+                icon="schedule"
+                label="Submitted"
+                value={selectedGuest.submitted}
+              />
+
+              <div className="pt-3">
                 <a
                   href={`mailto:${selectedGuest.email}`}
-                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-full border border-primary text-primary px-5 py-3 font-label-caps text-label-caps hover:bg-primary hover:text-on-primary transition"
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-full border border-primary text-primary px-5 py-3 font-label-caps text-label-caps hover:bg-primary hover:text-on-primary transition"
                 >
                   <span className="material-symbols-outlined">
                     mail
                   </span>
 
                   Email
-                </a>
-
-                <a
-                  href={`https://wa.me/${selectedGuest.phone.replace(
-                    /\D/g,
-                    ""
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-[#25D366] text-white px-5 py-3 font-label-caps text-label-caps"
-                >
-                  WhatsApp
                 </a>
               </div>
             </div>
@@ -1214,7 +1126,7 @@ function GuestTable({
 }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[760px]">
+      <table className="w-full min-w-[920px]">
         <thead>
           <tr className="text-left border-b border-outline-variant/20">
             <th className="px-4 py-3 font-label-caps text-label-caps text-on-surface-variant">
@@ -1222,15 +1134,19 @@ function GuestTable({
             </th>
 
             <th className="px-4 py-3 font-label-caps text-label-caps text-on-surface-variant">
-              Contact
+              Email
             </th>
 
             <th className="px-4 py-3 font-label-caps text-label-caps text-on-surface-variant">
-              Response
+              Attendance
             </th>
 
             <th className="px-4 py-3 font-label-caps text-label-caps text-on-surface-variant">
-              Plus One
+              Guests
+            </th>
+
+            <th className="px-4 py-3 font-label-caps text-label-caps text-on-surface-variant">
+              Note
             </th>
 
             <th className="px-4 py-3 font-label-caps text-label-caps text-on-surface-variant">
@@ -1245,7 +1161,7 @@ function GuestTable({
           {guests.length === 0 ? (
             <tr>
               <td
-                colSpan={6}
+                colSpan={7}
                 className="px-4 py-12 text-center text-on-surface-variant"
               >
                 No guests found.
@@ -1278,7 +1194,7 @@ function GuestTable({
 
                 <td className="px-4 py-4">
                   <span className="font-body-sm text-on-surface-variant">
-                    {guest.phone}
+                    {guest.email}
                   </span>
                 </td>
 
@@ -1292,10 +1208,22 @@ function GuestTable({
 
                 <td className="px-4 py-4">
                   <span className="font-body-sm text-on-surface-variant">
-                    {guest.plusOne
-                      ? guest.plusOneName ||
-                        "Yes"
-                      : "No"}
+                    {guest.attendance === "Accepted"
+                      ? `${guest.invitedGuests} ${
+                          guest.invitedGuests === 1
+                            ? "guest"
+                            : "guests"
+                        }`
+                      : "—"}
+                  </span>
+                </td>
+
+                <td className="px-4 py-4 max-w-[240px]">
+                  <span
+                    className="block truncate font-body-sm text-on-surface-variant"
+                    title={guest.message || "No note submitted."}
+                  >
+                    {guest.message || "No note submitted."}
                   </span>
                 </td>
 

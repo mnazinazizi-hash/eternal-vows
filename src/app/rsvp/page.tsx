@@ -8,6 +8,9 @@ export default function RsvpPage() {
   const [attending, setAttending] =
     useState<Attendance>(null);
 
+  const [invitedGuests, setInvitedGuests] =
+    useState(0);
+
   const [submitted, setSubmitted] =
     useState(false);
 
@@ -20,6 +23,10 @@ export default function RsvpPage() {
     setAttending((current) =>
       current === value ? null : value
     );
+
+    if (value === "no") {
+      setInvitedGuests(0);
+    }
   };
 
   const handleSubmit = async (
@@ -30,6 +37,19 @@ export default function RsvpPage() {
     if (attending === null) {
       return;
     }
+
+    const formData = new FormData(e.currentTarget);
+    const rsvpData = {
+      firstName: String(formData.get("firstName") || ""),
+      lastName: String(formData.get("lastName") || ""),
+      email: String(formData.get("email") || ""),
+      attendance: attending,
+      invitedGuests: attending === "yes" ? invitedGuests : 0,
+      message: String(formData.get("message") || ""),
+    };
+
+    // This is the RSVP shape that will be persisted when Supabase is connected.
+    console.log("RSVP ready to submit:", rsvpData);
 
     setLoading(true);
 
@@ -256,6 +276,59 @@ export default function RsvpPage() {
               </button>
             )}
           </fieldset>
+
+          {attending === "yes" && (
+            <fieldset>
+              <legend className="flex items-center gap-2 font-label-caps text-label-caps text-secondary mb-4">
+                <span className="material-symbols-outlined text-lg">
+                  group_add
+                </span>
+                How many guests will you bring along?
+              </legend>
+
+              <div className="inline-flex items-center rounded-full border border-outline-variant/40 bg-surface-container-lowest p-1 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setInvitedGuests((current) =>
+                      Math.max(0, current - 1)
+                    )
+                  }
+                  disabled={invitedGuests === 0}
+                  className="w-11 h-11 rounded-full flex items-center justify-center text-primary hover:bg-primary/10 transition disabled:opacity-35 disabled:cursor-not-allowed"
+                  aria-label="Remove one guest"
+                >
+                  <span className="material-symbols-outlined">
+                    remove
+                  </span>
+                </button>
+
+                <output
+                  aria-live="polite"
+                  className="min-w-14 text-center font-headline-sm text-on-surface"
+                >
+                  {invitedGuests}
+                </output>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setInvitedGuests((current) => current + 1)
+                  }
+                  className="w-11 h-11 rounded-full flex items-center justify-center text-primary hover:bg-primary/10 transition"
+                  aria-label="Add one guest"
+                >
+                  <span className="material-symbols-outlined">
+                    add
+                  </span>
+                </button>
+              </div>
+
+              <p className="mt-3 font-body-sm text-on-surface-variant">
+                This does not include you.
+              </p>
+            </fieldset>
+          )}
 
           {/* =====================================================
               NOTE
