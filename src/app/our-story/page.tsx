@@ -26,12 +26,12 @@ const party = [
 ];
 
 const gallery = [
-  "https://images.unsplash.com/photo-1522673609414-5fd4ccb1b5d4?w=800&q=80",
-  "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=800&q=80",
-  "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?w=800&q=80",
-  "https://images.unsplash.com/photo-1529636798458-92182e662925?w=800&q=80",
-  "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=800&q=80",
-  "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=800&q=80",
+  "/screen.png",
+  "/church.webp",
+  "/kunste.webp",
+  "/screen.png",
+  "/church.webp",
+  "/kunste.webp",
 ];
 
 export default function OurStoryPage() {

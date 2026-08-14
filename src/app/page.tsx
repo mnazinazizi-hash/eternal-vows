@@ -10,13 +10,17 @@ export default function HomePage() {
       ========================================================= */}
       <section className="relative h-[85vh] min-h-[640px] w-full flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 z-0">
-          <Image
-            src="/screen.png"
-            alt="Elena and Marcus"
-            fill
-            priority
-            className="object-cover object-center"
-          />
+          <video
+            autoPlay
+            muted
+            //loop
+            playsInline
+            preload="metadata"
+            aria-hidden="true"
+            className="h-full w-full object-cover object-center"
+          >
+            <source src="/hero-wedding.mp4" type="video/mp4" />
+          </video>
 
           <div className="absolute inset-0 bg-secondary/10 mix-blend-multiply" />
 

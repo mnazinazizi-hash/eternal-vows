@@ -35,7 +35,9 @@ export async function downloadWeddingReportPdf({
   columns,
   rows,
 }: WeddingReportOptions) {
-  const { jsPDF } = await import("jspdf");
+  // Use jsPDF's browser bundle explicitly. The package's Node entry imports
+  // optional polyfills that Windows Security can quarantine during compilation.
+  const { jsPDF } = await import("jspdf/dist/jspdf.es.min.js");
   const autoTable = (await import("jspdf-autotable")).default;
   const document = new jsPDF({
     orientation: "landscape",

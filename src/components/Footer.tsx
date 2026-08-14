@@ -26,6 +26,9 @@ export default function Footer() {
   const [loading, setLoading] =
     useState(false);
 
+  const [redirectingToAdmin, setRedirectingToAdmin] =
+    useState(false);
+
   const [error, setError] =
     useState("");
 
@@ -93,12 +96,8 @@ export default function Footer() {
         return;
       }
 
-      setShowAdminLogin(false);
-      setEmail("");
-      setPassword("");
-      setError("");
-
-      router.push("/admin");
+      setRedirectingToAdmin(true);
+      router.replace("/admin");
     } catch (error) {
       console.error("Admin login failed:", error);
       setError(
@@ -111,6 +110,20 @@ export default function Footer() {
 
   return (
     <>
+      {redirectingToAdmin && (
+        <main className="fixed inset-0 z-[1000] flex min-h-screen items-center justify-center bg-background">
+          <div className="text-center">
+            <span className="material-symbols-outlined animate-spin text-4xl text-primary">
+              progress_activity
+            </span>
+
+            <p className="mt-3 font-body-sm text-on-surface-variant">
+              Checking admin access...
+            </p>
+          </div>
+        </main>
+      )}
+
       {/* =====================================================
           FOOTER
       ====================================================== */}
