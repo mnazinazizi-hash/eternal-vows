@@ -1,32 +1,38 @@
--- Run once in the Supabase SQL Editor before enabling live payments.
--- This records the Daraja callback independently, then exposes confirmed
--- M-Pesa support payments through the existing admin contribution dashboard.
+-- Run once in the Supabase SQL Editor before testing IntaSend STK Push.
+-- This stores IntaSend collection requests and links completed payments
+-- into the existing admin contribution dashboard.
 
-create table if not exists public.mpesa_payments (
+create table if not exists public.intasend_payments (
   id uuid primary key default gen_random_uuid(),
   wedding_id uuid not null references public.weddings(id) on delete cascade,
   amount numeric(12, 2) not null check (amount > 0),
   phone_number text not null,
-  status text not null default 'pending'
-    check (status in ('pending', 'received', 'failed')),
-  merchant_request_id text not null unique,
-  checkout_request_id text not null unique,
-  mpesa_receipt_number text unique,
-  result_code integer,
-  result_description text,
-  raw_callback jsonb,
+  api_ref text not null unique,
+  intasend_invoice_id text unique,
+  status text not null default 'pending',
+  provider text,
+  provider_reference text,
+  charges numeric(12, 2),
+  net_amount numeric(12, 2),
+  currency text not null default 'KES',
+  failed_reason text,
+  raw_response jsonb,
+  raw_webhook jsonb,
   contribution_recorded boolean not null default false,
   created_at timestamptz not null default now(),
   paid_at timestamptz
 );
 
-alter table public.mpesa_payments enable row level security;
+alter table public.intasend_payments enable row level security;
 
-create index if not exists mpesa_payments_wedding_status_idx
-  on public.mpesa_payments (wedding_id, status, created_at desc);
+create index if not exists intasend_payments_wedding_status_idx
+  on public.intasend_payments (wedding_id, status, created_at desc);
+
+create index if not exists intasend_payments_api_ref_idx
+  on public.intasend_payments (api_ref);
 
 alter table public.contributions
-  add column if not exists mpesa_checkout_request_id text unique;
+  add column if not exists intasend_invoice_id text unique;
 
 create or replace function public.get_admin_dashboard_contributions()
 returns table (

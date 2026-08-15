@@ -33,7 +33,7 @@ export default function SupportUs() {
     setSubmitError("");
 
     try {
-      const response = await fetch("/api/mpesa/stk-push", {
+      const response = await fetch("/api/intasend/stk-push", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount: Number(amount), phoneNumber }),
