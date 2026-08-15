@@ -189,6 +189,13 @@ export default function AdminPage() {
         setCheckingAccess(false);
       }
 
+      // Sync any recently completed M-Pesa / IntaSend payments first
+      try {
+        await fetch("/api/intasend/sync-pending", { method: "POST" });
+      } catch (syncErr) {
+        console.warn("Auto-syncing IntaSend payments skipped:", syncErr);
+      }
+
       // These independent dashboard requests do not need to wait for each other.
       const [rsvpV2Result, contributionResult] = await Promise.all([
         supabase.rpc("get_admin_dashboard_rsvps_v2"),

@@ -18,10 +18,13 @@ create table if not exists public.intasend_payments (
   failed_reason text,
   raw_response jsonb,
   raw_webhook jsonb,
+  contributor_name text,
   contribution_recorded boolean not null default false,
   created_at timestamptz not null default now(),
   paid_at timestamptz
 );
+
+alter table public.intasend_payments add column if not exists contributor_name text;
 
 alter table public.intasend_payments enable row level security;
 
@@ -30,6 +33,17 @@ create index if not exists intasend_payments_wedding_status_idx
 
 create index if not exists intasend_payments_api_ref_idx
   on public.intasend_payments (api_ref);
+
+-- Ensure service_role and app roles have full table permissions
+grant usage on schema public to anon, authenticated, service_role;
+grant all on table public.intasend_payments to postgres, service_role;
+grant select on table public.intasend_payments to authenticated;
+
+grant all on table public.contributions to postgres, service_role;
+grant all on table public.rsvps to postgres, service_role;
+grant all on table public.guests to postgres, service_role;
+grant all on table public.weddings to postgres, service_role;
+grant all on table public.wedding_members to postgres, service_role;
 
 alter table public.contributions
   add column if not exists intasend_invoice_id text unique;
@@ -54,7 +68,7 @@ as $$
     c.amount,
     c.created_at,
     case
-      when lower(c.payment_status) = 'received' then 'Received'
+      when lower(c.payment_status) in ('received', 'completed', 'paid') then 'Received'
       else 'Pending'
     end as status
   from public.contributions c
@@ -69,4 +83,4 @@ as $$
 $$;
 
 revoke all on function public.get_admin_dashboard_contributions() from public;
-grant execute on function public.get_admin_dashboard_contributions() to authenticated;
+grant execute on function public.get_admin_dashboard_contributions() to authenticated, service_role;

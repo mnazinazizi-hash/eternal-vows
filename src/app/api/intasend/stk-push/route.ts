@@ -16,6 +16,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as {
       amount?: unknown;
       phoneNumber?: unknown;
+      contributorName?: unknown;
     };
     const amount = Number(body.amount);
 
@@ -33,6 +34,7 @@ export async function POST(request: Request) {
       );
     }
 
+    const name = typeof body.contributorName === "string" ? body.contributorName.trim() : null;
     const phoneNumber = normaliseKenyanPhoneNumber(body.phoneNumber);
     const apiRef = `EV-${randomUUID()}`;
     const adminClient = createAdminClient();
@@ -43,11 +45,13 @@ export async function POST(request: Request) {
         amount,
         phone_number: phoneNumber,
         api_ref: apiRef,
+        contributor_name: name,
       })
       .select("id")
       .single();
 
     if (insertError || !payment) {
+      console.error("Supabase intasend_payments insert error:", insertError);
       throw new Error("Payment storage is not configured yet.");
     }
 
